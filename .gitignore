@@ -1,0 +1,20 @@
+# Vendor installers and generated binaries must never be committed
+*.exe
+*.msi
+*.msp
+*.msix
+*.msixbundle
+*.7z
+*.zip
+*.rar
+*.log
+*.tmp
+*.bak
+*.pdb
+
+# Local analysis folders
+analysis/
+work/
+output/
+temp/
+*.user

@@ -78,7 +78,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\Patch\Patch-WPSPro.ps1 -In
 
 ## 项目边界
 
-国际版在线安装目前另有 [两层检查 Test3 实验](docs/Online-Installer.md)：启动检查已定位，后续下载包也有系统限制；自动内存修补方案尚待完整安装实测，不计入已成功列表。
+国际版在线安装目前另有 [两层检查 Test4 实验](docs/Online-Installer.md)：启动检查已定位，后续下载包也有系统限制；自动内存修补方案尚待完整安装实测，不计入已成功列表。
 
 - 不使用扩展内核，不更换系统 DLL，也不修改 Windows 的全局版本报告。
 - 不提供原版或已修补的 WPS 安装程序，用户须自行从合法渠道获得。

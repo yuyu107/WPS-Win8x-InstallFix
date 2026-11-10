@@ -36,6 +36,7 @@ function Standard-Fixture([int]$Offset=0x600) {
  return ,$b
 }
 function Reject-Standard([byte[]]$b,[string]$name) {
+ $fastRejected=$false; try { $null=[WpsOnlinePredicate]::Analyze($b,$WPSStandardPattern) } catch { $fastRejected=$true }; if (-not $fastRejected) { throw ('Fast detector accepted: '+$name) }
  $ok=$false; try { $null=Find-WPSStandardPatch $b } catch { $ok=$true }
  if (-not $ok) { throw ('Expected refusal: '+$name) }; Write-Host ('PASS refusal: '+$name)
 }
@@ -63,17 +64,31 @@ function Wrap-NSIS([byte[]]$Inner,[int]$Padding=0x2000,[switch]$Duplicate,[switc
  return ,$b
 }
 # Regression: a large installer overlay must not enter PowerShell's array binder.
-Add-Type -Path (Join-Path (Split-Path -Parent $PSScriptRoot) 'Patch/Online/OnlineDebugNative.cs')
+Add-Type -Path @((Join-Path (Split-Path -Parent $PSScriptRoot) 'Patch/Online/OnlineDebugNative.cs'),(Join-Path (Split-Path -Parent $PSScriptRoot) 'Patch/Online/OnlinePredicate.cs'))
 $overlayFile=Join-Path $env:TEMP ('wps-overlay-'+[Guid]::NewGuid().ToString('N')+'.exe')
 try {
  $fixture=Standard-Fixture
+ # Realistic code-section size for the suspended-child performance regression.
+ [byte[]]$large=New-Object byte[] 7517696
+ [Array]::Copy($fixture,$large,$fixture.Length)
+ S16 $large 0x86 5
+ $paddingSection=0x98+240+4*40
+ S32 $large ($paddingSection+8) 0x500000
+ S32 $large ($paddingSection+12) 0x6000
+ S32 $large ($paddingSection+16) 0x500000
+ S32 $large ($paddingSection+20) 0x2000
+ S32 $large ($paddingSection+36) 0x60000020
+ $scanTimer=[Diagnostics.Stopwatch]::StartNew()
+ $largePlan=[WpsOnlinePredicate]::Analyze($large,$WPSStandardPattern)
+ if ($largePlan.Offset -ne 0x600 -or $scanTimer.Elapsed.TotalSeconds -gt 10) { throw 'Compiled detector performance regression.' }
+ Write-Host ('PASS compiled 7.5MB image / 5MB executable-section detection: '+$scanTimer.Elapsed.TotalMilliseconds+' ms')
  [IO.File]::WriteAllBytes($overlayFile,$fixture)
  $stream=[IO.File]::OpenWrite($overlayFile)
  try { $stream.SetLength(380000000) } finally { $stream.Dispose() }
  $timer=[Diagnostics.Stopwatch]::StartNew()
  $bounded=[WpsOnlineNative]::ReadImageSections($overlayFile)
  if ($bounded.Length -ne 0x1C00) { throw 'Archive overlay was read into memory.' }
- $boundedPlan=Find-WPSStandardPatch $bounded
+ $boundedPlan=[WpsOnlinePredicate]::AnalyzeFile($overlayFile,$WPSStandardPattern)
  if ($boundedPlan.Offset -ne 0x600) { throw 'Bounded image lost the predicate or structural checks.' }
  Write-Host ('PASS large-overlay bounded read and full predicate validation: '+$timer.Elapsed.TotalSeconds+' seconds.')
  # Truncated section bytes must fail before detector invocation.
@@ -84,6 +99,10 @@ try {
  if (-not $rejected) { throw 'Truncated sections accepted.' }
 } finally { Remove-Item -LiteralPath $overlayFile -Force -ErrorAction SilentlyContinue }
 foreach ($offset in @(0x600,0x850)) {
+ $fastFixture=Standard-Fixture $offset
+ $fastPlan=[WpsOnlinePredicate]::Analyze($fastFixture,$WPSStandardPattern)
+ if ($fastPlan.Offset -ne $offset) { throw 'Fast detector did not follow moved predicate.' }
+
  $b=Standard-Fixture $offset; $p=Find-WPSStandardPatch $b
  if ($p.Offset -ne $offset) { throw 'Moved function not detected.' }
  Write-Host ('PASS AMD64 detection at '+$offset)

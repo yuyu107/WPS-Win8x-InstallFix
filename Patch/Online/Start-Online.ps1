@@ -1,6 +1,6 @@
 param([string]$Installer,[int]$TimeoutMinutes=30)
 $ErrorActionPreference='Stop'
-$log=Join-Path $PSScriptRoot 'Online_Test3_Result.txt'
+$log=Join-Path $PSScriptRoot 'Online_Test4_Result.txt'
 function Log([string]$s) {
  $line=(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')+' '+$s
  Write-Host $line
@@ -18,8 +18,8 @@ try {
  $core=Join-Path $PSScriptRoot '..\WPSStandard.Core.ps1'
  if (-not (Test-Path -LiteralPath $core)) { $core=Join-Path $PSScriptRoot 'WPSStandard.Core.ps1' }
  . $core
- Add-Type -Path (Join-Path $PSScriptRoot 'OnlineDebugNative.cs')
- Set-Content -LiteralPath $log -Value 'WPS international online compatibility Test3' -Encoding UTF8
+ Add-Type -Path @((Join-Path $PSScriptRoot 'OnlineDebugNative.cs'),(Join-Path $PSScriptRoot 'OnlinePredicate.cs'))
+ Set-Content -LiteralPath $log -Value 'WPS international online compatibility Test4' -Encoding UTF8
  Log 'Launching the original online installer. Disk EXE files will not be patched.'
  $info=[WpsOnlineNative]::Start($Installer)
  $deadline=(Get-Date).AddMinutes($TimeoutMinutes)
@@ -44,10 +44,8 @@ try {
       $b=$null; $plan=$null
       try {
        Log 'Reading bounded PE sections (archive overlay excluded).'
-       $b=[WpsOnlineNative]::ReadImageSections($path)
-       Log ('Validating installer code: '+$b.Length+' bytes.')
        $timer=[Diagnostics.Stopwatch]::StartNew()
-       $plan=Find-WPSStandardPatch $b
+       $plan=[WpsOnlinePredicate]::AnalyzeFile($path,$WPSStandardPattern)
        Log ('Predicate validation finished in '+$timer.Elapsed.TotalSeconds.ToString('F1')+' seconds.')
       } catch { Log ('VALIDATION FAILED: '+$_.Exception.Message); Log ($_.ScriptStackTrace | Out-String); throw }
       finally { $b=$null; [GC]::Collect() }
@@ -87,7 +85,7 @@ try {
  exit 0
 } catch {
  Log ('FAILED: '+$_.Exception.Message)
- Log 'If process creation requires elevation, right-click Start_Online_Test3.cmd and run as administrator.'
+ Log 'If process creation requires elevation, right-click Start_Online_Test4.cmd and run as administrator.'
  exit 1
 } finally {
  if ($pending) { try { [WpsOnlineNative]::Continue($pending,$pending.code -ne 1) } catch {} }

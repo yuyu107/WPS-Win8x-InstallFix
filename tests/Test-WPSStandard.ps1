@@ -62,6 +62,27 @@ function Wrap-NSIS([byte[]]$Inner,[int]$Padding=0x2000,[switch]$Duplicate,[switc
  }
  return ,$b
 }
+# Regression: a large installer overlay must not enter PowerShell's array binder.
+Add-Type -Path (Join-Path (Split-Path -Parent $PSScriptRoot) 'Patch/Online/OnlineDebugNative.cs')
+$overlayFile=Join-Path $env:TEMP ('wps-overlay-'+[Guid]::NewGuid().ToString('N')+'.exe')
+try {
+ $fixture=Standard-Fixture
+ [IO.File]::WriteAllBytes($overlayFile,$fixture)
+ $stream=[IO.File]::OpenWrite($overlayFile)
+ try { $stream.SetLength(380000000) } finally { $stream.Dispose() }
+ $timer=[Diagnostics.Stopwatch]::StartNew()
+ $bounded=[WpsOnlineNative]::ReadImageSections($overlayFile)
+ if ($bounded.Length -ne 0x1C00) { throw 'Archive overlay was read into memory.' }
+ $boundedPlan=Find-WPSStandardPatch $bounded
+ if ($boundedPlan.Offset -ne 0x600) { throw 'Bounded image lost the predicate or structural checks.' }
+ Write-Host ('PASS large-overlay bounded read and full predicate validation: '+$timer.Elapsed.TotalSeconds+' seconds.')
+ # Truncated section bytes must fail before detector invocation.
+ $stream=[IO.File]::OpenWrite($overlayFile)
+ try { $stream.SetLength(0x1900) } finally { $stream.Dispose() }
+ $rejected=$false
+ try { $null=[WpsOnlineNative]::ReadImageSections($overlayFile) } catch { $rejected=$true }
+ if (-not $rejected) { throw 'Truncated sections accepted.' }
+} finally { Remove-Item -LiteralPath $overlayFile -Force -ErrorAction SilentlyContinue }
 foreach ($offset in @(0x600,0x850)) {
  $b=Standard-Fixture $offset; $p=Find-WPSStandardPatch $b
  if ($p.Offset -ne $offset) { throw 'Moved function not detected.' }

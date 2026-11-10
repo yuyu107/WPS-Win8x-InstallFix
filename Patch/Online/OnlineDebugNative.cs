@@ -38,6 +38,32 @@ public static class WpsOnlineNative {
  [DllImport("kernel32.dll",SetLastError=true)] static extern bool FlushInstructionCache(IntPtr process,IntPtr address,UIntPtr length);
  [DllImport("kernel32.dll",SetLastError=true)] public static extern bool CloseHandle(IntPtr handle);
 
+ // Installer archives live after the PE sections. Never materialize that overlay
+ // as a PowerShell argument: Windows PowerShell can exhaust its array binder.
+ public static byte[] ReadImageSections(string path) {
+  const int limit=64*1024*1024;
+  using(FileStream f=new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.ReadWrite|FileShare.Delete))
+  using(BinaryReader r=new BinaryReader(f)) {
+   if(f.Length<64 || r.ReadUInt16()!=0x5A4D) throw new InvalidDataException("Missing MZ header.");
+   f.Position=60; uint pe=r.ReadUInt32();
+   if(pe>1048576 || pe+24L>f.Length) throw new InvalidDataException("Invalid PE header offset.");
+   f.Position=pe; if(r.ReadUInt32()!=0x4550) throw new InvalidDataException("Missing PE signature.");
+   r.ReadUInt16(); ushort count=r.ReadUInt16();
+   f.Position=pe+20; ushort optionalSize=r.ReadUInt16();
+   long table=pe+24L+optionalSize, end=table+40L*count;
+   if(count<1 || count>96 || end>f.Length || end>limit) throw new InvalidDataException("Invalid PE section table.");
+   for(int i=0;i<count;i++) {
+    f.Position=table+40L*i+16; uint size=r.ReadUInt32(), raw=r.ReadUInt32();
+    long sectionEnd=(long)raw+size;
+    if(sectionEnd>f.Length || sectionEnd>limit) throw new InvalidDataException("PE sections exceed bounded reader limit.");
+    end=Math.Max(end,sectionEnd);
+   }
+   f.Position=0; byte[] data=new byte[(int)end]; int done=0;
+   while(done<data.Length) { int n=f.Read(data,done,data.Length-done); if(n==0) throw new EndOfStreamException(); done+=n; }
+   return data;
+  }
+ }
+
  public static ProcessInfo Start(string path) {
   if(IntPtr.Size!=8) throw new InvalidOperationException("Use 64-bit Windows PowerShell.");
   StartupInfo si=new StartupInfo(); si.cb=(uint)Marshal.SizeOf(typeof(StartupInfo));

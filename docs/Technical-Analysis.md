@@ -18,7 +18,7 @@
 | 12.1.0.29158 | 中国大陆版 x64 离线包 | NSIS 32 位外壳 + x64 内层 EXE | 修补后进入安装界面 |
 | 12.1.0.29162 | 国际版 x64 离线包 | NSIS 32 位外壳 + x64 内层 EXE | 修补后进入安装界面 |
 
-两者内层的共享版本检查函数入口相同，**不应由此推断所有版本都具有相同地址**。当前只允许对照 [Supported-Builds.md](Supported-Builds.md) 中的完整文件 SHA-256 修补。
+两者内层的共享版本检查函数入口相同，**不应由此推断所有版本都具有相同地址**。初版只允许对照完整 SHA256 修补；当前版本已经加入 NSIS 动态提取及 AMD64 语义特征识别，详见 [Standard-Multi-Version.md](Standard-Multi-Version.md)。
 
 ## 三、定位与修补
 
@@ -51,7 +51,7 @@ ret
 - [VerifyVersionInfoW](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-verifyversioninfow)
 - [GetFileVersionInfoW](https://learn.microsoft.com/en-us/windows/win32/api/winver/nf-winver-getfileversioninfow)
 
-## 五、原有 x64 路线的验证范围
+## 五、初版 x64 路线的历史验证范围
 
 - 当前支持且验证过静态补丁的仅为两个特定 x64 离线构建。
 - 文件原始 SHA-256、解压后的内层 SHA-256、修改前字节、修改后 SHA-256 均严格校验。
@@ -63,3 +63,7 @@ ret
 ## 六、专业版：共享检查与重定位
 
 专业版 29161 已在 Windows 8.1 完成官方安装器安装。它采用原生 PE32 KPacket 外层，不适用上述 x64 内层偏移。新补丁定位界面和后端共同使用的系统支持检查，并用 3 字节跳转至原函数成功返回分支。详细地址、调用链、早期 ASLR 错误及最终方案见 [Professional-Installer.md](Professional-Installer.md)，自动识别边界见 [Multi-Version.md](Multi-Version.md)。
+
+## 七、普通版/国际版多版本路线
+
+新脚本动态解析非 solid NSIS 数据块，从 AMD64 PE 候选中选择唯一通过函数、配置字符串、共享调用、函数元数据和重定位守卫的内层安装器。历史固定偏移不再参与新版本定位。两份原包均复现原输出哈希；当前边界与测试见 [Standard-Multi-Version.md](Standard-Multi-Version.md)。

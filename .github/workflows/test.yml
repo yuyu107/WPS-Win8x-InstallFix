@@ -22,3 +22,6 @@ jobs:
       - name: Test family detection, refusal cases and ASLR
         shell: powershell
         run: ./tests/Test-WPSPro.ps1
+      - name: Test ordinary and international NSIS extraction and patching
+        shell: powershell
+        run: ./tests/Test-WPSStandard.ps1

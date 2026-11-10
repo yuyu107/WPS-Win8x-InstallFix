@@ -4,7 +4,7 @@
 
 | 安装包类型 | 识别与修改 |
 | --- | --- |
-| 普通版 29158 / 国际版 29162 | 保留原有外包与内包 SHA256 白名单、内层提取和输出哈希校验 |
+| 普通版 / 国际版 x64 | 动态遍历 NSIS 数据块或读取原始 AMD64 内层 EXE，按函数结构识别；29158/29162 仍有额外参考哈希校验 |
 | 专业版原生 PE32 KPacket | 扫描可执行节内的系统支持函数代码家族，动态定位 RVA 和文件偏移 |
 
 专业版新构建的文件名、版本号、文件大小或函数所在偏移改变，不需要仅为这些变化重新填地址。绝对地址及 call 位移可以变化；指令结构和语义守卫必须仍满足当前家族。
@@ -41,3 +41,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\Patch\Patch-WPSPro.ps1 -In
 `tests/Test-WPSPro.ps1` 构造不含 WPS 完整程序的合成 PE，检查函数位置变化、ASLR 和拒绝路径。GitHub Actions 在 Windows PowerShell 上解析并运行测试。
 
 遇到不匹配版本，应根据具体文件扩展新的家族模板和对应测试，而不是删掉校验或复用上个版本的固定偏移。提交 Issue 时提供版本、原包 SHA256、系统版本和错误信息即可；不要提交厂商完整二进制或含个人路径的原始诊断日志。
+
+## 普通版 / 国际版现已自动适配
+
+`Patch-WPS.ps1` 与 `01-Apply-Patch.cmd` 现使用新的动态路线；不再要求新包命中哈希白名单或固定 NSIS 流位置。检测与写入边界见 [Standard-Multi-Version.md](Standard-Multi-Version.md)。`tests/Test-WPSStandard.ps1` 验证外壳数据位置变化、内层函数移动、Deflate 与未压缩块、重复内层候选、畸形块及 CLI 输出完整性。

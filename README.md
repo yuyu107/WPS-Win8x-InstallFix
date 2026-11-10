@@ -2,9 +2,9 @@
 
 **WPS Office Windows 8 / 8.1 安装限制修复与技术研究**（无需扩展内核）
 
-部分较新的 WPS Office 安装器出现了令人困惑的现象：**仍允许 Windows 7 安装，却在 Windows 8 / Windows 8.1 上直接提示操作系统不受支持**。本仓库记录该现象、分析其安装器的系统版本检查，并提供针对两个经过静态校验的 x64 离线安装包的实验性补丁。
+部分较新的 WPS Office 安装器出现了令人困惑的现象：**仍允许 Windows 7 安装，却在 Windows 8 / Windows 8.1 上直接提示操作系统不受支持**。本仓库记录该现象、分析其安装器的系统版本检查，并提供普通版、国际版与专业版的安装检查补丁。专业版已加入基于代码特征的多版本定位。
 
-> 当前仅由用户实测确认：修补后能**进入安装界面**。尚不能据此认定安装全部完成、运行/更新/卸载正常，亦不代表官方支持 Windows 8.x。
+> **最新结果（2026-11-10）：专业版 12.1.0.29161 已在 Windows 8.1 使用修补后的官方安装器成功完成安装。** 最终仅修改外层 EXE 的 3 字节，不重组安装包、不替换 DLL。
 
 ## WPS 对 Windows 8.x 的具体限制
 
@@ -12,10 +12,10 @@
 | --- | --- |
 | Windows 7 | 安装器列为允许的操作系统之一 |
 | Windows 8 (NT 6.2) | 安装器存在拦截 Windows 8.x 的版本检测逻辑；需进一步区分各系统的独立完整测试 |
-| Windows 8.1 (NT 6.3) | 原版测试时提示不支持；修补后可进入安装界面 |
+| Windows 8.1 (NT 6.3) | 原版测试时提示不支持；专业版 29161 修补后已完成安装 |
 | Windows 10 / 11 | 安装器列为允许的操作系统 |
 
-本项目涉及两个不同地区的 **x64 离线包**：中国大陆版 `12.1.0.29158` 和国际版 `12.1.0.29162`。两者原版均被报告在 Windows 8.x 上拦截，使用相同原理修改后均已进入安装界面。**不能简单断言所有国际版都兼容或都不兼容**：在线安装包与离线安装包可能采用不同流程，WPS 官网支持列表也不一定反映某个构建的实际安装器行为。
+原有补丁涉及两个不同地区的 **x64 离线包**：中国大陆版 `12.1.0.29158` 和国际版 `12.1.0.29162`。两者原版均被报告在 Windows 8.x 上拦截，使用相同原理修改后均已进入安装界面。**不能简单断言所有国际版都兼容或都不兼容**：在线安装包与离线安装包可能采用不同流程，WPS 官网支持列表也不一定反映某个构建的实际安装器行为。
 
 官方背景资料：
 - [WPS 官方社区：有关 Win8/8.1 安装新版 WPS 的讨论](https://bbs.wps.cn/)
@@ -39,25 +39,43 @@
 | --- | --- | --- | --- |
 | 中国大陆版 12.1.0.29158 | x64 | 系统不支持 | **进入安装界面** |
 | 国际版 12.1.0.29162 | x64 | 系统不支持 | **进入安装界面** |
+| 专业版 12.1.0.29161 | 外层安装器为 PE32 / x86 | 系统不支持 | **Windows 8.1 完整安装成功** |
 
-仅限 [已列出 SHA-256 的原始文件](docs/Supported-Builds.md)。32 位、在线安装器、其他构建和重新打包的安装器尚不支持。
+普通版/国际版继续使用精确哈希路线。专业版自动定位同类 PE32 KPacket 代码，版本变化后不复用固定文件偏移。未知构建只有通过全部结构校验才会修补，且标记为未实机验证。这里的 x86 是安装器架构，不等同于安装后的所有 WPS 组件架构。详见 [支持情况](docs/Supported-Builds.md)。
 
-## 使用方法
+## 普通版 / 国际版：原有使用方法
 
 1. 从官方渠道获取对应的原版 **x64 离线安装包**。
 2. 将 `Patch/01-Apply-Patch.cmd`、`Patch/Patch-WPS.ps1` 和原始安装包放在同一个目录。
 3. 在 Windows 测试环境中运行 `01-Apply-Patch.cmd`，脚本会校验原包、提取内层安装器、验证并修补 **6 个字节**、再次校验结果。
 4. 用生成的 `WPS_29158_x64_Win8x_Patched.exe` 或 `WPS_29162_x64_Win8x_Patched.exe` 进行独立测试。
 
-推荐事先创建虚拟机快照。原文件不会被覆盖；修补后 EXE 的原厂数字签名失效。**不要为了使用本工具而关闭安全防护。** 安装、启动 WPS 或执行升级都可能另有兼容性问题。
+原文件不会被覆盖；修补后 EXE 的原厂数字签名失效。
+
+## 专业版：多版本定位
+
+1. 下载仓库完整源码，保持 `Patch` 下三个专业版文件在一起：`02-Apply-Pro-Patch.cmd`、`Patch-WPSPro.ps1`、`WPSPro.Core.ps1`。
+2. 将原始专业版安装包拖到 `02-Apply-Pro-Patch.cmd`；29161 也可放在脚本旁直接运行 CMD。
+3. 脚本检查 PE、函数特征、系统判断配置字符串、共享调用与接口跳板、重定位覆盖范围。
+4. 成功后生成 `<原文件名>_Win8x_Patched.exe` 及 `.patch.json` 记录。运行生成的 EXE 即可使用原官方安装流程。
+
+只分析、不生成安装器：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\Patch\Patch-WPSPro.ps1 -Installer "D:\WPSPro.exe" -AnalyzeOnly
+```
+
+支持 Windows PowerShell 4.0（Windows 8.1 自带），不需要 Python、7-Zip 或扩展内核。原包与已有输出不会被覆盖。输出 JSON 区分已实测原包和仅匹配代码家族的构建；更换编译方式、检查逻辑、架构或出现多个候选时明确拒绝，不能保证任意未来版本都自动适配。
+
+[专业版成功方案与 ASLR 修复](docs/Professional-Installer.md) · [多版本适配说明](docs/Multi-Version.md)
 
 ## 项目边界
 
 - 不使用扩展内核，不更换系统 DLL，也不修改 Windows 的全局版本报告。
 - 不提供原版或已修补的 WPS 安装程序，用户须自行从合法渠道获得。
 - 这是独立兼容性研究，与金山办公及 WPS 官方无关联。
-- 目前未发布稳定版；欢迎附系统版本、文件 SHA-256、错误截图和日志提交 Issue（请删除隐私信息）。
+- 欢迎附系统版本、文件 SHA-256、补丁 JSON 和安装日志提交 Issue（请删除隐私信息）。
 
 ## English summary
 
-Experimental Windows 8/8.1 installer compatibility research for WPS Office x64 offline builds **12.1.0.29158** and **12.1.0.29162**. Despite the installers listing Windows 7 and Windows 10/11 as supported, users observed an OS-version block on Windows 8.x. A six-byte modification to the shared version-check function allowed the installer UI to open. Full installation and application compatibility remain **unverified**. No vendor binaries are redistributed.
+WPS Office installer compatibility fixes for Windows 8/8.1. The original exact-hash x64 routes for 12.1.0.29158 and 12.1.0.29162 remain available. Professional 12.1.0.29161 has completed installation on Windows 8.1 using the original official installer with a three-byte, relocation-safe change. A structural detector supports matching PE32 KPacket builds without fixed file offsets, rejects changed/ambiguous layouts, and labels untested builds. No vendor binaries are redistributed.

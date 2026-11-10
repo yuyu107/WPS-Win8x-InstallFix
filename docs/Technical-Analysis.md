@@ -51,10 +51,15 @@ ret
 - [VerifyVersionInfoW](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-verifyversioninfow)
 - [GetFileVersionInfoW](https://learn.microsoft.com/en-us/windows/win32/api/winver/nf-winver-getfileversioninfow)
 
-## 五、风险、适用范围及后续研究
+## 五、原有 x64 路线的验证范围
 
 - 当前支持且验证过静态补丁的仅为两个特定 x64 离线构建。
 - 文件原始 SHA-256、解压后的内层 SHA-256、修改前字节、修改后 SHA-256 均严格校验。
 - 生成的修补 EXE 原厂签名失效，适合先在可回滚虚拟机验证。
 - 目前只确认进入安装界面，并未全面验证安装进度、文字/表格/演示、更新器及卸载。
 - 后续可研究 x86 构建、具体运行时检测路径，以及不依赖固定文件偏移的安全特征识别。
+
+
+## 六、专业版：共享检查与重定位
+
+专业版 29161 已在 Windows 8.1 完成官方安装器安装。它采用原生 PE32 KPacket 外层，不适用上述 x64 内层偏移。新补丁定位界面和后端共同使用的系统支持检查，并用 3 字节跳转至原函数成功返回分支。详细地址、调用链、早期 ASLR 错误及最终方案见 [Professional-Installer.md](Professional-Installer.md)，自动识别边界见 [Multi-Version.md](Multi-Version.md)。

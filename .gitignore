@@ -18,3 +18,5 @@ work/
 output/
 temp/
 *.user
+*.patch.json
+

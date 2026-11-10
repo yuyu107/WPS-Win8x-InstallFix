@@ -25,3 +25,6 @@ jobs:
       - name: Test ordinary and international NSIS extraction and patching
         shell: powershell
         run: ./tests/Test-WPSStandard.ps1
+      - name: Test online launcher native debug interface
+        shell: powershell
+        run: ./tests/Test-OnlineNative.ps1

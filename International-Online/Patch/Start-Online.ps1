@@ -15,9 +15,7 @@ try {
  $Installer=(Resolve-Path -LiteralPath $Installer).Path
  $rootHash=(Get-FileHash -LiteralPath $Installer -Algorithm SHA256).Hash
  if ($rootHash -ne '27D27759AD6D159A908AC7EC6CE3EBA5623ACAFA117A64644138673A6CBD2A31') { throw 'This test requires the original, unmodified online bootstrapper.' }
- $core=Join-Path $PSScriptRoot '..\WPSStandard.Core.ps1'
- if (-not (Test-Path -LiteralPath $core)) { $core=Join-Path $PSScriptRoot 'WPSStandard.Core.ps1' }
- . $core
+ . (Join-Path $PSScriptRoot 'InstallerPattern.ps1')
  Add-Type -Path @((Join-Path $PSScriptRoot 'OnlineDebugNative.cs'),(Join-Path $PSScriptRoot 'OnlinePredicate.cs'))
  Set-Content -LiteralPath $log -Value 'WPS international online compatibility Test4' -Encoding UTF8
  Log 'Launching the original online installer. Disk EXE files will not be patched.'

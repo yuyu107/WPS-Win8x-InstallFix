@@ -1,4 +1,4 @@
-name: Validate patch scripts
+name: Validate independent edition scripts
 on:
   push:
   pull_request:
@@ -7,24 +7,29 @@ permissions:
   contents: read
 jobs:
   windows-powershell:
+    name: ${{ matrix.edition }}
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        edition: [Standard, Professional, International-Offline, International-Online]
     steps:
       - uses: actions/checkout@v4
-      - name: Parse PowerShell scripts
+      - name: Test the selected edition in isolation
         shell: powershell
+        env:
+          WPS_EDITION: ${{ matrix.edition }}
         run: |
           $ErrorActionPreference = 'Stop'
-          Get-ChildItem -Recurse -Filter *.ps1 | ForEach-Object {
+          $isolated = Join-Path $env:RUNNER_TEMP ('wps-' + $env:WPS_EDITION)
+          Copy-Item -LiteralPath $env:WPS_EDITION -Destination $isolated -Recurse
+          Get-ChildItem -LiteralPath $isolated -Recurse -Filter *.ps1 | ForEach-Object {
             $tokens = $null; $parseErrors = $null
             [void][System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$parseErrors)
             if ($parseErrors.Count) { throw ($parseErrors | Out-String) }
           }
-      - name: Test family detection, refusal cases and ASLR
-        shell: powershell
-        run: ./tests/Test-WPSPro.ps1
-      - name: Test ordinary and international NSIS extraction and patching
-        shell: powershell
-        run: ./tests/Test-WPSStandard.ps1
-      - name: Test online launcher native debug interface
-        shell: powershell
-        run: ./tests/Test-OnlineNative.ps1
+          $engine = Join-Path $PSHOME 'powershell.exe'
+          Get-ChildItem -LiteralPath (Join-Path $isolated 'tests') -Filter Test-*.ps1 | ForEach-Object {
+            & $engine -NoProfile -ExecutionPolicy Bypass -File $_.FullName
+            if ($LASTEXITCODE -ne 0) { throw ('Test failed: ' + $_.Name) }
+          }

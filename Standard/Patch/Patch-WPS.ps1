@@ -2,14 +2,13 @@ param([string]$Installer,[switch]$AnalyzeOnly)
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'WPSStandard.Core.ps1')
 $known=@(
- @{Version='29158'; Name='WPS_Setup_x64_29158.exe'; Outer='1DD9F29797FA6D0A17A7F9CCC7FFEF052F8A89327669570B77455A56FB9C4E3F'; Inner='344962D031570139C87F3E7A3A64033E89E4EAC015CF378DA9EE285C1A454A8C'; Output='9D174EB69D71E91768AED8D7B4B3E333ACE32BBA30B5F138C06D349F96BA6E14'},
- @{Version='29162'; Name='WPSOffice.exe'; Outer='937AA8ED95A1A7BB6C9DAAF0EE3948D4BD8C8E47BBCE9969DCE08BC03BDFD4DC'; Inner='FF81929317739A7EF13D489C575ED6A521EEE931E063FE61C4E98BA247DA055B'; Output='E05E1667A0D212F26F02345B857F174DA534AD7B0CAE65439EF9C5C668BC5B73'}
+ @{Version='29158'; Name='WPS_Setup_x64_29158.exe'; Outer='1DD9F29797FA6D0A17A7F9CCC7FFEF052F8A89327669570B77455A56FB9C4E3F'; Inner='344962D031570139C87F3E7A3A64033E89E4EAC015CF378DA9EE285C1A454A8C'; Output='9D174EB69D71E91768AED8D7B4B3E333ACE32BBA30B5F138C06D349F96BA6E14'}
 )
 $inputs=@()
 if ($Installer) { $inputs+=$Installer } else {
  foreach ($c in $known) { $p=Join-Path $PSScriptRoot $c.Name; if (Test-Path -LiteralPath $p) { $inputs+=$p } }
 }
-if ($inputs.Count -eq 0) { Write-Host 'Drag an original regular/international installer onto 01-Apply-Patch.cmd, or use -Installer PATH.'; exit 2 }
+if ($inputs.Count -eq 0) { Write-Host 'Drag an original Standard installer onto 01-Apply-Patch.cmd, or use -Installer PATH.'; exit 2 }
 $failed=$false
 foreach ($inputPath in $inputs) {
  $work=$null; $created=$false; $output=$null

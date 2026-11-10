@@ -1,6 +1,6 @@
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
-Add-Type -Path (Join-Path $root 'Patch/Online/OnlineDebugNative.cs')
+Add-Type -Path (Join-Path $root 'Patch/OnlineDebugNative.cs')
 if ([IntPtr]::Size -ne 8) { throw 'Native debugger test requires an x64 host.' }
 if ([Runtime.InteropServices.Marshal]::SizeOf([type][WpsOnlineNative+DebugEvent]) -ne 176) { throw 'Wrong DEBUG_EVENT layout.' }
 if ([Runtime.InteropServices.Marshal]::SizeOf([type][WpsOnlineNative+StartupInfo]) -ne 104) { throw 'Wrong STARTUPINFO layout.' }

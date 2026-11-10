@@ -1,90 +1,42 @@
 # WPS-Win8x-InstallFix
 
-**WPS Office Windows 8 / 8.1 安装限制修复与技术研究**（无需扩展内核）
+WPS Office 在 Windows 8 / 8.1 上的安装限制修补与研究，无需扩展内核，保留官方安装流程。
 
-部分较新的 WPS Office 安装器出现了令人困惑的现象：**仍允许 Windows 7 安装，却在 Windows 8 / Windows 8.1 上直接提示操作系统不受支持**。本仓库记录该现象、分析其安装器的系统版本检查，并提供普通版、国际版与专业版的安装检查补丁。普通版、国际版和专业版均已加入基于代码结构的多版本定位。
+**2026-11-10：国际版在线安装 Test4 已在 Windows 8.1 成功完成安装，实际下载构建为 12.1.0.29681。专业版 12.1.0.29161 此前也已完整安装成功。**
 
-> **最新结果（2026-11-10）：专业版 12.1.0.29161 已在 Windows 8.1 使用修补后的官方安装器成功完成安装。** 最终仅修改外层 EXE 的 3 字节，不重组安装包、不替换 DLL。
+## 按版本独立维护
 
-## WPS 对 Windows 8.x 的具体限制
+| 方案 | 独立目录与入口 | 当前验证结果 |
+| --- | --- | --- |
+| 普通版（中国大陆版）x64 离线包 | [Standard](Standard/README.md)：`Patch/01-Apply-Patch.cmd` | 29158 已进入安装界面，输出哈希已复现 |
+| 专业版 | [Professional](Professional/README.md)：`Patch/02-Apply-Pro-Patch.cmd` | 29161 在 Windows 8.1 完整安装成功 |
+| 国际版 x64 离线包 | [International-Offline](International-Offline/README.md)：`Patch/01-Apply-Patch.cmd` | 29162 已进入安装界面，输出哈希已复现 |
+| 国际版在线安装 | [International-Online](International-Online/README.md)：`Patch/Start_Online_Test4.cmd` | 引导器 25872 → 安装包 29681 在 Windows 8.1 完整安装成功 |
 
-| 系统 | 此次研究所涉及离线安装包的行为 |
-| --- | --- |
-| Windows 7 | 安装器列为允许的操作系统之一 |
-| Windows 8 (NT 6.2) | 安装器存在拦截 Windows 8.x 的版本检测逻辑；需进一步区分各系统的独立完整测试 |
-| Windows 8.1 (NT 6.3) | 原版测试时提示不支持；专业版 29161 修补后已完成安装 |
-| Windows 10 / 11 | 安装器列为允许的操作系统 |
+每个目录分别保存自己的脚本、检测规则、参考哈希、说明和测试；**可以单独复制一个目录使用，不导入其它版本的实现，也不保留统一修补入口**。部分版本现阶段采用相同原理，但保留独立文件，后续可分别修改。
 
-原有补丁涉及两个不同地区的 **x64 离线包**：中国大陆版 `12.1.0.29158` 和国际版 `12.1.0.29162`。两者原版均被报告在 Windows 8.x 上拦截，使用相同原理修改后均已进入安装界面。**不能简单断言所有国际版都兼容或都不兼容**：在线安装包与离线安装包可能采用不同流程，WPS 官网支持列表也不一定反映某个构建的实际安装器行为。
+请进入对应目录阅读用法。原来的根目录 `Patch/`、`docs/`、`tests/` 已拆分，旧路径不再使用。这里的“多版本”指同一产品版本内多个构建的结构适配，不代表四种安装流程混用。
 
-官方背景资料：
-- [WPS 官方社区：有关 Win8/8.1 安装新版 WPS 的讨论](https://bbs.wps.cn/)
-- [WPS 国际版官网](https://www.wps.com/)（网站的系统要求应与具体安装包行为分开看）
+## 多版本适配范围
 
-### 为什么会专门限制 Windows 8.x？
+普通版、国际版离线包按 NSIS 数据块和 AMD64 代码结构定位；专业版按 PE32 KPacket 结构定位。它们不因同一家族内的偏移变化而使用旧地址；结构或语义改变、候选不唯一、重定位冲突时停止。匹配新构建不等同于独立完成安装实测。
 
-**目前没有可信的官方技术说明可以证实厂商的真实决策动机。** 一种可能是支持名单按特定系统版本设定，而不是简单的“Windows 7 或更高版本”；另一个可能原因是产品维护、兼容测试成本或既有安装器代码。但这些都只是解释假设，**不是已证实的厂商意图**。
+国际版在线方案对下载后的 AMD64 安装包动态定位，**在线引导器本身目前仍限定已验证的精确原始哈希**。两层修补仅发生在进程内存，磁盘原包及其签名保持原样。离线方案生成修补副本，副本原厂签名失效。
 
-## 原理：为什么兼容模式没能解决？
+## 已知情况
 
-常规兼容模式并不会把 Windows 8.x 完整变成 Windows 7。安装器可以通过不同版本 API、文件版本资源以及多个进程自行检查操作系统；部分检查不一定受普通 Windows 7 兼容层影响。此次实验中，原版外层和内层安装器使用 Windows 7 兼容模式仍然遭到拦截。
+国际版在线安装末尾出现过 **WPS Office Expansion tool 已停止工作**。用户确认关闭该程序后可继续并成功完成安装；扩展工具崩溃原因尚未定位，未标记为已修复。
 
-反汇编显示，上述两个构建的内层 64 位程序具有相似的共享版本检查函数（虚拟地址 `0x1400C3280`，文件偏移 `0xC2680`）。将入口原始字节 `40 53 48 83 EC 20` 替换为 `B8 01 00 00 00 C3`（`mov eax,1; ret`），会让**这一项检查**直接返回成功，因此不必伪装整个 Windows 版本。
+Windows 8.1 的上述成功结果不能替代 Windows 8 的独立实测，也不能据此保证所有 WPS 组件或未来构建均兼容。
 
-这一测试能够证明**安装界面前的拦截可由程序自身检查决定**，但不能证明 WPS 完全无其他系统依赖。具体是哪条 API/进程路径导致兼容模式失败，目前尚缺动态断点证据。详见 [技术分析](docs/Technical-Analysis.md)。
+## 测试与反馈
 
-## 支持版本和测试情况
+GitHub Actions 按四个独立方案分别运行 Windows PowerShell 测试。在线方案另测 32 位父进程到 64 位子进程的调试事件、内存读写与继续执行，以及编译后检测器的结构拒绝和大代码区耗时。合成夹具不包含厂商完整程序，自动测试不代替安装实测。
 
-| 离线包 | 架构 | 原版表现 | 修补结果 |
-| --- | --- | --- | --- |
-| 中国大陆版 12.1.0.29158 | x64 | 系统不支持 | **进入安装界面** |
-| 国际版 12.1.0.29162 | x64 | 系统不支持 | **进入安装界面** |
-| 专业版 12.1.0.29161 | 外层安装器为 PE32 / x86 | 系统不支持 | **Windows 8.1 完整安装成功** |
+提交 Issue 时注明所用目录、系统版本、安装包版本及 SHA256，附错误、补丁 JSON 或日志，并删除个人路径等隐私信息。
 
-普通版/国际版自动遍历 NSIS 数据块、识别 AMD64 内层 EXE 并定位检查函数；专业版自动定位同类 PE32 KPacket 代码。三者均不再因已支持家族内的函数偏移变化而复用旧地址。未知构建只有通过全部结构校验才会修补，且标记为未实机验证。这里的 x86 是安装器架构，不等同于安装后的所有 WPS 组件架构。详见 [支持情况](docs/Supported-Builds.md)。
-
-## 普通版 / 国际版：多版本定位
-
-1. 下载仓库完整源码，保持 `Patch/01-Apply-Patch.cmd`、`Patch/Patch-WPS.ps1` 和 `Patch/WPSStandard.Core.ps1` 在一起。
-2. 将官网原版 **x64 离线安装包**拖到 `01-Apply-Patch.cmd`。也支持直接传入原版 AMD64 内层安装器。
-3. 脚本沿 NSIS 数据块边界寻找内层 EXE，再按完整函数结构、RIP 相对配置字符串、共享调用、AMD64 函数元数据和重定位表识别检查函数。
-4. 成功后生成修补内层 EXE 和 `.patch.json`。29158/29162 保持原输出名和预期 SHA256，其它匹配构建使用原文件名加 `_x64_Win8x_Patched.exe`。
-
-```powershell
-# 只分析；NSIS 解压用临时文件，结束后清理，不生成安装器输出
-powershell -NoProfile -ExecutionPolicy Bypass -File .\Patch\Patch-WPS.ps1 -Installer "D:\WPS_Setup_new.exe" -AnalyzeOnly
-```
-
-新版本不要求先登记完整哈希。原有 29158/29162 哈希用于额外校验，未知构建通过结构守卫才会生成，并标记未实机验证。只支持当前非 solid 的 NSIS Deflate/未压缩数据块布局和 AMD64 检查函数家族，结构改变时停止。原文件与已有输出不会被覆盖，输出数字签名失效。
-
-[普通版与国际版自动适配详情](docs/Standard-Multi-Version.md)
-
-## 专业版：多版本定位
-
-1. 下载仓库完整源码，保持 `Patch` 下三个专业版文件在一起：`02-Apply-Pro-Patch.cmd`、`Patch-WPSPro.ps1`、`WPSPro.Core.ps1`。
-2. 将原始专业版安装包拖到 `02-Apply-Pro-Patch.cmd`；29161 也可放在脚本旁直接运行 CMD。
-3. 脚本检查 PE、函数特征、系统判断配置字符串、共享调用与接口跳板、重定位覆盖范围。
-4. 成功后生成 `<原文件名>_Win8x_Patched.exe` 及 `.patch.json` 记录。运行生成的 EXE 即可使用原官方安装流程。
-
-只分析、不生成安装器：
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\Patch\Patch-WPSPro.ps1 -Installer "D:\WPSPro.exe" -AnalyzeOnly
-```
-
-支持 Windows PowerShell 4.0（Windows 8.1 自带），不需要 Python、7-Zip 或扩展内核。原包与已有输出不会被覆盖。输出 JSON 区分已实测原包和仅匹配代码家族的构建；更换编译方式、检查逻辑、架构或出现多个候选时明确拒绝，不能保证任意未来版本都自动适配。
-
-[专业版成功方案与 ASLR 修复](docs/Professional-Installer.md) · [多版本适配说明](docs/Multi-Version.md)
-
-## 项目边界
-
-国际版在线安装目前另有 [两层检查 Test4 实验](docs/Online-Installer.md)：启动检查已定位，后续下载包也有系统限制；自动内存修补方案尚待完整安装实测，不计入已成功列表。
-
-- 不使用扩展内核，不更换系统 DLL，也不修改 Windows 的全局版本报告。
-- 不提供原版或已修补的 WPS 安装程序，用户须自行从合法渠道获得。
-- 这是独立兼容性研究，与金山办公及 WPS 官方无关联。
-- 欢迎附系统版本、文件 SHA-256、补丁 JSON 和安装日志提交 Issue（请删除隐私信息）。
+本仓库不分发原版或已修补的 WPS 安装器，不修改系统 DLL 或全局系统版本。项目与 WPS 官方无关联。
 
 ## English summary
 
-WPS Office installer compatibility fixes for Windows 8/8.1. Regular and international x64 installers now use dynamic NSIS block traversal and structural AMD64 predicate detection; reference hashes for 12.1.0.29158 and 12.1.0.29162 remain additional integrity checks. Professional 12.1.0.29161 has completed installation on Windows 8.1 using the original official installer with a three-byte, relocation-safe change. A structural detector supports matching PE32 KPacket builds without fixed file offsets, rejects changed/ambiguous layouts, and labels untested builds. No vendor binaries are redistributed.
+Independent Windows 8/8.1 installer compatibility solutions for Standard, Professional, International Offline and International Online editions. Each directory owns its implementation, rules, documentation and tests without cross-edition runtime dependencies. Professional 12.1.0.29161 and the international online 25872 → 29681 flow completed installation on Windows 8.1. The online bootstrapper remains pinned to the verified original hash; downloaded AMD64 installers use structural detection. An end-of-install Expansion tool crash was reported without preventing completion; its cause remains unknown. No vendor binaries are redistributed.

@@ -1,8 +1,8 @@
-# 普通版 / 国际版：自动适配安装包更新
+# 普通版：自动适配安装包更新
 
 ## 已完成的改动
 
-普通版和国际版原有补丁依赖每个安装包的 SHA256、内层压缩流起点、内层长度及文件偏移 `0xC2680`。这些信息现在只作为已知构建的额外验证，不再参与新版本的定位。
+普通版原有补丁依赖每个安装包的 SHA256、内层压缩流起点、内层长度及文件偏移 `0xC2680`。这些信息现在只作为已知构建的额外验证，不再参与新版本的定位。
 
 | 层次 | 新的处理方法 |
 | --- | --- |
@@ -28,7 +28,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\Patch\Patch-WPS.ps1 -Insta
 powershell -NoProfile -ExecutionPolicy Bypass -File .\Patch\Patch-WPS.ps1 -Installer "D:\new installer.exe"
 ```
 
-直接传入原始 AMD64 内层 EXE 也会执行相同检测。不提供参数时，继续查找脚本旁的 `WPS_Setup_x64_29158.exe`、`WPSOffice.exe`，兼容旧的双击用法。新文件名请拖放或传入路径。
+直接传入原始 AMD64 内层 EXE 也会执行相同检测。不提供参数时，继续查找脚本旁的 `WPS_Setup_x64_29158.exe`，兼容旧的双击用法。新文件名请拖放或传入路径。
 
 输出仍是官方内层安装器及其原安装流程，不是重制安装器。脚本不修改原始外包，不直接部署 WPS 文件。
 
@@ -37,7 +37,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\Patch\Patch-WPS.ps1 -Insta
 | 构建 | 自动找到的内层块头位置 | 动态检查函数偏移 | 输出验证 |
 | --- | --- | --- | --- |
 | 普通版 12.1.0.29158 | `0x47C81` | `0xC2680` | 复现历史输出 SHA256 |
-| 国际版 12.1.0.29162 | `0x47C8E` | `0xC2680` | 复现历史输出 SHA256 |
 
 注意：表中是**块头位置**；JSON 的 StreamOffset 是压缩数据起点，即块头再加 4。这些地址仅用于描述已知样本，脚本没有把它们写作新版本定位条件。
 
@@ -45,7 +44,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\Patch\Patch-WPS.ps1 -Insta
 
 ## 当前边界
 
-- 普通版和国际版限 AMD64 内层家族；PE32 专业版用单独的 `02-Apply-Pro-Patch.cmd`。
+- 普通版限 AMD64 内层家族；PE32 专业版使用仓库 `Professional` 目录的独立方案。
 - NSIS 当前支持非 solid、逐块 Deflate 及未压缩布局；不支持 solid/LZMA 打包方式。打包方式改变会停止，不猜测旧偏移。
 - NSIS 头须在前 16 MiB、块数不超过 512、单个解压内层不超过 1 GiB；超限停止。
 - 需要唯一的内层候选及唯一的系统检查函数。更换编译器后指令结构改变、检查语义改变、文件截断、重定位冲突或重复修补均拒绝。
@@ -53,6 +52,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\Patch\Patch-WPS.ps1 -Insta
 
 ## 测试
 
-原有两份安装包已动态遍历块、提取内层、匹配唯一函数，并分别复现历史内层及修补输出哈希。
+本目录参考安装包已动态遍历块、提取内层、匹配唯一函数，并复现历史内层及修补输出哈希。
 
 Windows PowerShell 合成 PE/NSIS 测试覆盖内层函数移动、压缩块移动、Deflate/未压缩两条路线、配置锚点错误、函数元数据缺失、DIR64 重定位冲突、共享调用/指针缺失、多个合法内层、块长度损坏、只分析模式、输出仅改六字节、原包不变及已有输出保护。测试夹具不含厂商完整程序。
